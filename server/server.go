@@ -5,6 +5,8 @@ import (
 	"BroadcastService/server/dbshttp"
 	"BroadcastService/storage"
 	"BroadcastService/storage/gocache"
+	"BroadcastService/validator"
+	"BroadcastService/validator/md5_validator"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -20,6 +22,7 @@ import (
 type Server struct {
 	httpServer *http.Server
 	storage    storage.Storage
+	validator  validator.Validator
 }
 
 func (s *Server) Run() {
@@ -57,6 +60,14 @@ func (s *Server) HandleNewPosts(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Error parsing data"))
 		return
 	}
+
+	isValid := s.validator.Validate(data)
+	if !isValid {
+		w.WriteHeader(200)
+		w.Write([]byte("Invalid data"))
+		return
+	}
+
 	data.TimeStamp = time.Now().String()
 
 	result := &dbshttp.PostNewDataRsp{}
@@ -92,9 +103,9 @@ func (s *Server) HandleListAllRecentData(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	resList := make([]*common.Data, 0)
+	resList := make([]*dbshttp.HttpData, 0)
 	for _, v := range list {
-		resList = append(resList, &common.Data{
+		resList = append(resList, &dbshttp.HttpData{
 			Id:        v.GetId(),
 			Raw:       v.GetRawData(),
 			Signature: v.GetSignature(),
@@ -130,6 +141,8 @@ func New() *Server {
 	s.httpServer = httpServer
 
 	s.storage = gocache.New()
+
+	s.validator = md5_validator.New()
 
 	return s
 }

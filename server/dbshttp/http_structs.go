@@ -3,7 +3,7 @@ package dbshttp
 import "BroadcastService/common"
 
 type ListAllRecentDataRsp struct {
-	DataList []*common.Data `json:"data_list"`
+	DataList []*HttpData `json:"data_list"`
 }
 
 type PostNewDataRsp struct {
