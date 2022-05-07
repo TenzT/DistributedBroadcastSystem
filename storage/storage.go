@@ -7,18 +7,17 @@ type Storage interface {
 	// Fetch data from storage
 	GetData(key string) (data StoredData, err error)
 
-	// Save data to storage
+	// Save data to storage, data expires in 24 from timestamp
 	SaveData(data StoredData) error
 
 	// Get all data
 	GetAllData() (dataList []StoredData, err error)
-
 }
 
 // Abstraction of stored data in storage
 type StoredData interface {
-	GetId() (string)
-	GetRawData() (string)
-	GetSignature() (string)
-	GetTimeStamp() (string)
+	GetId() string
+	GetRawData() string
+	GetSignature() string
+	GetTimeStamp() string
 }

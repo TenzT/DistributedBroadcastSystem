@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -23,6 +24,8 @@ type Server struct {
 	httpServer *http.Server
 	storage    storage.Storage
 	validator  validator.Validator
+	core       *Core
+	cancelFunc context.CancelFunc
 }
 
 func (s *Server) Run() {
@@ -53,6 +56,7 @@ func (s *Server) HandleNewPosts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	time.Now().String()
 	data := &common.Data{}
 	err = json.Unmarshal(b, data)
 	if err != nil {
@@ -60,18 +64,18 @@ func (s *Server) HandleNewPosts(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Error parsing data"))
 		return
 	}
+	data.TimeStamp = strconv.Itoa(int(time.Now().Unix()))
 
-	isValid := s.validator.Validate(data)
-	if !isValid {
+	err = s.core.Deliver(data)
+
+	if err != nil {
 		w.WriteHeader(200)
-		w.Write([]byte("Invalid data"))
+		w.Write([]byte(err.Error()))
 		return
 	}
 
-	data.TimeStamp = time.Now().String()
-
 	result := &dbshttp.PostNewDataRsp{}
-	err = s.storage.SaveData(data)
+
 	if err != nil {
 		log.Println(err.Error())
 		result.Result = false
@@ -96,7 +100,7 @@ func (s *Server) HandleNewPosts(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) HandleListAllRecentData(w http.ResponseWriter, r *http.Request) {
 
-	list, err := s.storage.GetAllData()
+	list, err := s.core.GetAllData()
 	if err != nil {
 		w.WriteHeader(200)
 		w.Write([]byte("Errror getting all data"))
@@ -140,9 +144,19 @@ func New() *Server {
 	}
 	s.httpServer = httpServer
 
-	s.storage = gocache.New()
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancelFunc = cancel
 
-	s.validator = md5_validator.New()
+	kvstore := gocache.New()
+	validator := md5_validator.New()
+
+	s.validator = validator
+	s.storage = kvstore
+
+	// create Core
+	core := NewCore(kvstore, ctx, validator)
+
+	s.core = core
 
 	return s
 }

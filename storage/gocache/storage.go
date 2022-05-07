@@ -4,6 +4,7 @@ import (
 	"BroadcastService/storage"
 	"github.com/patrickmn/go-cache"
 	"github.com/pkg/errors"
+	"strconv"
 	"time"
 )
 
@@ -36,12 +37,20 @@ func (s *GoCacheKVStorage) GetData(key string) (data storage.StoredData, err err
 
 func (s *GoCacheKVStorage) SaveData(data storage.StoredData) error {
 	d := &GoCacaheData{
-		id: data.GetId(),
-		raw: data.GetRawData(),
+		id:        data.GetId(),
+		raw:       data.GetRawData(),
 		signature: data.GetSignature(),
 		timestamp: data.GetTimeStamp(),
 	}
-	return s.kvcache.Add(data.GetId(), d, EXPIRED_TIME_HOUR * time.Hour)
+
+	inputTime, err := strconv.ParseInt(d.timestamp, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	expiredTime := time.Unix(inputTime, 0).Add(EXPIRED_TIME_HOUR * time.Hour).Sub(time.Now())
+	s.kvcache.Set(data.GetId(), d, expiredTime)
+	return nil
 }
 
 func (s *GoCacheKVStorage) GetAllData() (dataList []storage.StoredData, err error) {
@@ -58,9 +67,8 @@ func (s *GoCacheKVStorage) GetAllData() (dataList []storage.StoredData, err erro
 	return list, nil
 }
 
-
 func New() storage.Storage {
 	return &GoCacheKVStorage{
-		kvcache: cache.New(EXPIRED_TIME_HOUR * time.Hour, PURGE_INTERVAL_MIN * time.Minute),
+		kvcache: cache.New(EXPIRED_TIME_HOUR*time.Hour, PURGE_INTERVAL_MIN*time.Minute),
 	}
 }

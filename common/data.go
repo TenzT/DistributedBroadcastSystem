@@ -4,7 +4,7 @@ type Data struct {
 	Id        string
 	Raw       string
 	Signature string
-	TimeStamp string
+	TimeStamp string // unix timestamp
 }
 
 func (d *Data) GetId() string {
