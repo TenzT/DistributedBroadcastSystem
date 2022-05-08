@@ -52,6 +52,10 @@ func (c *Core) Deliver(data *common.Data) (err error) {
 		}
 	}
 
+	if dataInCache.GetRawData() != data.Raw {
+		return errors.New("Different raw data with same id")
+	}
+
 	// try save older data
 	inputTime, err := strconv.Atoi(data.TimeStamp)
 	if err != nil {
