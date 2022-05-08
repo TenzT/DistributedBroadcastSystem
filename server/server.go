@@ -76,7 +76,6 @@ func (s *Server) loop() {
 	for {
 		select {
 		case event := <-s.eventBus.Subscribe():
-			// TODO: implements event loop
 			log.Println(event)
 			switch event.EventType {
 			case eventbus.EVENT_TYPE_BROADCAST_DATA_BATCH:
