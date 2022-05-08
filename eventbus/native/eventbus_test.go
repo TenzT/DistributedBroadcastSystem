@@ -8,7 +8,7 @@ import (
 )
 
 func TestEventBus(t *testing.T) {
-	eventBus := New()
+	eventBus := NewNativeChannelEventBus()
 	go func() {
 		event := eventbus.Event{
 			EventType: eventbus.EVENT_TYPE_NEW_DATA,

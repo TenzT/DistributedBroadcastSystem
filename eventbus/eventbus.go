@@ -3,6 +3,7 @@ package eventbus
 const (
 	EVENT_TYPE_UNKNOWN = iota
 	EVENT_TYPE_BROADCAST_DATA_BATCH
+	EVENT_TYPE_RECEIVE_DATA
 )
 
 // EventBus transmiss events

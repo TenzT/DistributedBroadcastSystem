@@ -27,6 +27,7 @@ type Core struct {
 
 // Deliver trys to save data from outside
 func (c *Core) Deliver(data *common.Data) (err error) {
+	log.Printf("core receives data: {%v}", data)
 	isValid := c.validator.Validate(data)
 
 	if !isValid {
@@ -71,7 +72,7 @@ func (c *Core) Deliver(data *common.Data) (err error) {
 func (c *Core) tryBroadcastData(data common.Data) {
 	event := eventbus.Event{
 		EventType: eventbus.EVENT_TYPE_BROADCAST_DATA_BATCH,
-		Payload: []common.Data{data} ,
+		Payload:   []common.Data{data},
 	}
 
 	c.events <- event
@@ -104,11 +105,14 @@ func (c *Core) Events() <-chan eventbus.Event {
 	return c.events
 }
 
-
 func (c *Core) autoBroadcast() {
 	l, err := c.GetAllData()
 	if err != nil {
 		log.Println("Error getting data list in auto broadcast.")
+		return
+	}
+
+	if len(l) == 0 {
 		return
 	}
 
@@ -119,7 +123,7 @@ func (c *Core) autoBroadcast() {
 
 	event := eventbus.Event{
 		EventType: eventbus.EVENT_TYPE_BROADCAST_DATA_BATCH,
-		Payload: list,
+		Payload:   list,
 	}
 
 	c.events <- event
@@ -139,7 +143,6 @@ func (c *Core) Run() {
 		}
 	}
 }
-
 
 func NewCore(kvstore storage.Storage, ctx context.Context, validator validator.Validator) *Core {
 	return &Core{

@@ -1,7 +1,11 @@
 package server
 
 import (
+	"BroadcastService/cluster"
+	"BroadcastService/cluster/echo"
 	"BroadcastService/common"
+	"BroadcastService/eventbus"
+	"BroadcastService/eventbus/native"
 	"BroadcastService/server/dbshttp"
 	"BroadcastService/storage"
 	"BroadcastService/storage/gocache"
@@ -26,15 +30,25 @@ type Server struct {
 	validator  validator.Validator
 	core       *Core
 	cancelFunc context.CancelFunc
+	ctx        context.Context
+	cluster    cluster.Cluster
+	eventBus   eventbus.EventBus
 }
 
 func (s *Server) Run() {
 	log.Print("Running server.")
 
+	// start http server
 	go func() {
 		s.httpServer.ListenAndServe()
 		log.Println("Shutting down http server gracefully.")
 	}()
+
+	// run main loop
+	go s.loop()
+
+	// run core
+	go s.core.Run()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
@@ -43,9 +57,48 @@ func (s *Server) Run() {
 	<-sigs
 	fmt.Println("notify sigs")
 	s.httpServer.Shutdown(context.Background())
+	s.cancelFunc()
 	fmt.Println("server shutdown")
 
 	time.Sleep(1 * time.Second)
+}
+
+func (s *Server) loop() {
+	log.Println("server loop")
+	for {
+		select {
+		case event := <- s.eventBus.Subscribe():
+			// TODO: implements event loop
+			log.Println(event)
+			switch event.EventType {
+			case eventbus.EVENT_TYPE_BROADCAST_DATA_BATCH:
+				dataList, ok := event.Payload.([]common.Data)
+				if (!ok) {
+					log.Println("Error parsing data to be broadcast")
+				} else {
+					s.cluster.Broadcast(dataList)
+				}
+			case eventbus.EVENT_TYPE_RECEIVE_DATA:
+				data, ok := event.Payload.(common.Data)
+				if (!ok) {
+					log.Println("Error parsing data from cluster")
+				} else {
+					s.core.Deliver(&data)
+				}
+			}
+		case data := <-s.cluster.Receive():
+			event := eventbus.Event{
+				EventType: eventbus.EVENT_TYPE_RECEIVE_DATA,
+				Payload: data,
+			}
+			s.eventBus.Publish(event)
+		case event := <-s.core.Events():
+			s.eventBus.Publish(event)
+		case <-s.ctx.Done():
+			log.Println("stop server")
+			return
+		}
+	}
 }
 
 func (s *Server) HandleNewPosts(w http.ResponseWriter, r *http.Request) {
@@ -146,12 +199,17 @@ func New() *Server {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s.cancelFunc = cancel
+	s.ctx = ctx
 
 	kvstore := gocache.New()
 	validator := md5_validator.New()
+	cluster := echo.NewEchoCluster()
+	eventbus := native.NewNativeChannelEventBus()
 
 	s.validator = validator
 	s.storage = kvstore
+	s.cluster = cluster
+	s.eventBus = eventbus
 
 	// create Core
 	core := NewCore(kvstore, ctx, validator)

@@ -15,7 +15,7 @@ func (eb *NativeChannelEventBus) Subscribe() <-chan eventbus.Event {
 	return eb.messageQueue
 }
 
-func New() *NativeChannelEventBus {
+func NewNativeChannelEventBus() *NativeChannelEventBus {
 	return &NativeChannelEventBus{
 		messageQueue: make(chan eventbus.Event, 10000),
 	}
