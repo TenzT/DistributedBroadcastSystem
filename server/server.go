@@ -2,7 +2,7 @@ package server
 
 import (
 	"BroadcastService/cluster"
-	"BroadcastService/cluster/echo"
+	"BroadcastService/cluster/lib2p_pubsub"
 	"BroadcastService/common"
 	"BroadcastService/eventbus"
 	"BroadcastService/eventbus/native"
@@ -211,7 +211,11 @@ func New(config *ServerConfig) *Server {
 
 	kvstore := gocache.New()
 	validator := md5_validator.New()
-	cluster := echo.NewEchoCluster()
+
+	//cluster := echo.NewEchoCluster()
+
+	cluster := lib2p_pubsub.NewPubSubCluster(ctx)
+
 	eventbus := native.NewNativeChannelEventBus()
 
 	s.validator = validator

@@ -1,10 +1,10 @@
 package common
 
 type Data struct {
-	Id        string
-	Raw       string
-	Signature string
-	TimeStamp string // unix timestamp
+	Id        string `json:"id"`
+	Raw       string `json:"raw""`
+	Signature string `json:"signature"`
+	TimeStamp string `json:"time_stamp"` // unix timestamp
 }
 
 func (d *Data) GetId() string {
