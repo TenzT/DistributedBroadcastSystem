@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const AUTO_BROADCAST_INTERVAL_SECOND = 5
+const AUTO_BROADCAST_INTERVAL_SECOND = 20
 
 // Core handles new data from outside and sync data to cluster
 type Core struct {

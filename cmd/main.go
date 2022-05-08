@@ -8,6 +8,7 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.Ltime | log.Lshortfile)
 
 	httpPort := flag.String("httpport", "", "http port for clients.")
 
@@ -22,6 +23,7 @@ func main() {
 		log.Println(err.Error())
 		return
 	}
+
 	serverConfig := &server.ServerConfig{
 		HttpPort: int64(port),
 	}
