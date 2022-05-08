@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -40,8 +41,15 @@ func (s *Server) Run() {
 
 	// start http server
 	go func() {
-		s.httpServer.ListenAndServe()
-		log.Println("Shutting down http server gracefully.")
+		log.Printf("Start http server on address: {%s}", s.httpServer.Addr)
+		err := s.httpServer.ListenAndServe()
+		if err != nil {
+			if strings.Contains(err.Error(), "Server closed") {
+				log.Println("Shutting down http server gracefully.")
+			} else {
+				log.Panic(err.Error())
+			}
+		}
 	}()
 
 	// run main loop
@@ -55,10 +63,10 @@ func (s *Server) Run() {
 
 	// Wating for signals
 	<-sigs
-	fmt.Println("notify sigs")
+	log.Println("notify sigs")
 	s.httpServer.Shutdown(context.Background())
 	s.cancelFunc()
-	fmt.Println("server shutdown")
+	log.Println("server shutdown")
 
 	time.Sleep(1 * time.Second)
 }
@@ -67,20 +75,20 @@ func (s *Server) loop() {
 	log.Println("server loop")
 	for {
 		select {
-		case event := <- s.eventBus.Subscribe():
+		case event := <-s.eventBus.Subscribe():
 			// TODO: implements event loop
 			log.Println(event)
 			switch event.EventType {
 			case eventbus.EVENT_TYPE_BROADCAST_DATA_BATCH:
 				dataList, ok := event.Payload.([]common.Data)
-				if (!ok) {
+				if !ok {
 					log.Println("Error parsing data to be broadcast")
 				} else {
 					s.cluster.Broadcast(dataList)
 				}
 			case eventbus.EVENT_TYPE_RECEIVE_DATA:
 				data, ok := event.Payload.(common.Data)
-				if (!ok) {
+				if !ok {
 					log.Println("Error parsing data from cluster")
 				} else {
 					s.core.Deliver(&data)
@@ -89,7 +97,7 @@ func (s *Server) loop() {
 		case data := <-s.cluster.Receive():
 			event := eventbus.Event{
 				EventType: eventbus.EVENT_TYPE_RECEIVE_DATA,
-				Payload: data,
+				Payload:   data,
 			}
 			s.eventBus.Publish(event)
 		case event := <-s.core.Events():
@@ -186,13 +194,13 @@ func (s *Server) HandleListAllRecentData(w http.ResponseWriter, r *http.Request)
 	return
 }
 
-func New() *Server {
+func New(config *ServerConfig) *Server {
 	s := &Server{}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/postNewData", s.HandleNewPosts)
 	mux.HandleFunc("/listAllRecentData", s.HandleListAllRecentData)
 	httpServer := &http.Server{
-		Addr:    ":8080",
+		Addr:    fmt.Sprintf(":%d", config.HttpPort),
 		Handler: mux,
 	}
 	s.httpServer = httpServer
